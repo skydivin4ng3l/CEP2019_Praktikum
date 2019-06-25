@@ -46,7 +46,10 @@ public class EPN {
 
         EPStatement lhDestinationAirport = cepAdm.createEPL("insert into OutStream3 select *, lufthansa.Lufthansa.getArrivalAirportCode(flightNumber) as destinationAirport from OutStream2");
 
-        EPStatement loungeInfo = cepAdm.createEPL("insert into OutStream8 select *, lufthansa.Lufthansa.getAirportLounges(destinationAirport) as lounges from OutStream3");
+        EPStatement bookingFilter = cepAdm.createEPL("insert into OutStream4 select * from Booking(cabinClass.toString() != 'ECONOMY')");
+
+        //EPStatement loungeInfo = cepAdm.createEPL("insert into OutStream8 select *, lufthansa.Lufthansa.getAirportLounges(destinationAirport) as lounges from OutStream3");
+        EPStatement loungeInfo = cepAdm.createEPL("insert into OutStream8 select *, lufthansa.Lufthansa.getAirportLounges(destinationAirport) as lounges from OutStream3 JOIN OutStream4 where OutStream3.flightNumber = OutStream4.flightNumber");
 
         EPStatement loungeSelector = cepAdm.createEPL("insert into OutStream9 select flightNumber, destinationAirport, " +
                 "lounges[0].name as loungeName, lounges[0].showers as showers from OutStream8");
@@ -71,7 +74,7 @@ public class EPN {
         Thread thread2 = new Thread() {
             public void run() {
                 // Enter your OWM key here
-                String owmKey = "";
+                String owmKey = "bab296ceeacf70e2398b913ee2240566";
                 OWM owm = new OWM(owmKey);
                 owm.setUnit(OWM.Unit.METRIC);
                 sendWeatherEvents(owm);
