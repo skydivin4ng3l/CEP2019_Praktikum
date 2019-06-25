@@ -40,19 +40,19 @@ public class EPN {
         cp.addEventType("Booking", Booking.class.getName());
 
         // event queries (EPAs)
-        EPStatement lhFilter = cepAdm.createEPL("insert into OutStream1 select * from StateVector(callsign regexp '[ \\t\\n\\f\\r]*(EWG|DLH|AUA|SWR)[0-9]{1,4}[ \\t\\n\\f\\r]*')");
+        EPStatement lhFilter = cepAdm.createEPL("insert into LHStateVectorStream select * from StateVector(callsign regexp '[ \\t\\n\\f\\r]*(EWG|DLH|AUA|SWR)[0-9]{1,4}[ \\t\\n\\f\\r]*')");
 
-        EPStatement callsignToFlightNumber = cepAdm.createEPL("insert into OutStream2 select *, utils.Callsign.icaoToIata(callsign) as flightNumber from OutStream1");
+        EPStatement callsignToFlightNumber = cepAdm.createEPL("insert into LHStateVectorWithFlightNumberStream select *, utils.Callsign.icaoToIata(callsign) as flightNumber from LHStateVectorStream");
 
-        EPStatement lhDestinationAirport = cepAdm.createEPL("insert into OutStream3 select *, lufthansa.Lufthansa.getArrivalAirportCode(flightNumber) as destinationAirport from OutStream2");
+        EPStatement lhDestinationAirport = cepAdm.createEPL("insert into LHStateVectorWithFlightNumberAndDestinationAirportStream select *, lufthansa.Lufthansa.getArrivalAirportCode(flightNumber) as destinationAirport from LHStateVectorWithFlightNumberStream");
 
         EPStatement bookingFilter = cepAdm.createEPL("insert into OutStream4 select * from Booking(cabinClass.toString() != 'ECONOMY')");
 
-        //EPStatement loungeInfo = cepAdm.createEPL("insert into OutStream8 select *, lufthansa.Lufthansa.getAirportLounges(destinationAirport) as lounges from OutStream3");
-        EPStatement loungeInfo = cepAdm.createEPL("insert into OutStream8 select *, lufthansa.Lufthansa.getAirportLounges(destinationAirport) as lounges from OutStream3 JOIN OutStream4 where OutStream3.flightNumber = OutStream4.flightNumber");
+        //EPStatement loungeInfo = cepAdm.createEPL("insert into OutStream8 select *, lufthansa.Lufthansa.getAirportLounges(destinationAirport) as lounges from LHStateVectorWithFlightNumberAndDestinationAirportStream");
+        EPStatement loungeInfo = cepAdm.createEPL("insert into OutStream8 select *, lufthansa.Lufthansa.getAirportLounges(destinationAirport) as lounges from LHStateVectorWithFlightNumberAndDestinationAirportStream#unique(destinationAirport) as A left outer JOIN OutStream4#unique(flightNumber) where LHStateVectorWithFlightNumberAndDestinationAirportStream.flightNumber = OutStream4.flightNumber");
 
-        EPStatement loungeSelector = cepAdm.createEPL("insert into OutStream9 select flightNumber, destinationAirport, " +
-                "lounges[0].name as loungeName, lounges[0].showers as showers from OutStream8");
+        EPStatement loungeSelector = cepAdm.createEPL("insert into OutStream9 select A.flightNumber, A.destinationAirport, " +
+               "lounges[0].name as loungeName, lounges[0].showers as showers from OutStream8");
 
         EPStatement ife = cepAdm.createEPL("insert into FinalStream select * from OutStream9");
 
@@ -61,6 +61,7 @@ public class EPN {
         callsignToFlightNumber.addListener(new CEPListener("callsignToFlightNumber"));
         lhDestinationAirport.addListener(new CEPListener("lhDestinationAirport"));
         loungeInfo.addListener(new CEPListener("loungeInfo"));
+        bookingFilter.addListener(new CEPListener("bookingFilter"));
         loungeSelector.addListener(new CEPListener("loungeSelector"));
         ife.addListener(new CEPListener("ife"));
 
