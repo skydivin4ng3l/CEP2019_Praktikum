@@ -46,13 +46,13 @@ public class EPN {
 
         EPStatement lhDestinationAirport = cepAdm.createEPL("insert into LHStateVectorWithFlightNumberAndDestinationAirportStream select *, lufthansa.Lufthansa.getArrivalAirportCode(flightNumber) as destinationAirport from LHStateVectorWithFlightNumberStream");
 
-        EPStatement bookingFilter = cepAdm.createEPL("insert into OutStream4 select * from Booking(cabinClass.toString() != 'ECONOMY')");
+        EPStatement bookingFilter = cepAdm.createEPL("insert into BookingStream select * from Booking(cabinClass.toString() != 'ECONOMY')");
 
-        //EPStatement loungeInfo = cepAdm.createEPL("insert into OutStream8 select *, lufthansa.Lufthansa.getAirportLounges(destinationAirport) as lounges from LHStateVectorWithFlightNumberAndDestinationAirportStream");
-        EPStatement loungeInfo = cepAdm.createEPL("insert into OutStream8 select *, lufthansa.Lufthansa.getAirportLounges(destinationAirport) as lounges from LHStateVectorWithFlightNumberAndDestinationAirportStream#unique(destinationAirport) as A left outer JOIN OutStream4#unique(flightNumber) where LHStateVectorWithFlightNumberAndDestinationAirportStream.flightNumber = OutStream4.flightNumber");
+        //EPStatement loungeInfo = cepAdm.createEPL("insert into LoungeInfoStream select *, lufthansa.Lufthansa.getAirportLounges(destinationAirport) as lounges from LHStateVectorWithFlightNumberAndDestinationAirportStream");
+        EPStatement loungeInfo = cepAdm.createEPL("insert into LoungeInfoStream select *, lufthansa.Lufthansa.getAirportLounges(destinationAirport) as lounges from LHStateVectorWithFlightNumberAndDestinationAirportStream.win:length(100) as DestinationAirport JOIN BookingStream#unique(flightNumber) as Booking where DestinationAirport.flightNumber = BookingStream.flightNumber");
 
-        EPStatement loungeSelector = cepAdm.createEPL("insert into OutStream9 select A.flightNumber, A.destinationAirport, " +
-               "lounges[0].name as loungeName, lounges[0].showers as showers from OutStream8");
+        EPStatement loungeSelector = cepAdm.createEPL("insert into OutStream9 select Booking.passengerName, DestinationAirport.flightNumber, DestinationAirport.destinationAirport, " +
+               "lounges[0].name as loungeName, lounges[0].showers as showers from LoungeInfoStream");
 
         EPStatement ife = cepAdm.createEPL("insert into FinalStream select * from OutStream9");
 
