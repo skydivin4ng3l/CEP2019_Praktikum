@@ -46,6 +46,10 @@ public class EPN {
 
         EPStatement lhDestinationAirport = cepAdm.createEPL("insert into LHStateVectorWithFlightNumberAndDestinationAirportStream select *, lufthansa.Lufthansa.getArrivalAirportCode(flightNumber) as destinationAirport from LHStateVectorWithFlightNumberStream");
 
+        EPStatement lhDestinationCoordinates = cepAdm.createEPL("insert into LHStateVectorWithFlightNumberAndDestinationCoordinatesStream select *, lufthansa.Lufthansa.getArrivalAirportCoords(flightNumber) as destinationCoordinates from LHStateVectorWithFlightNumberStream");
+
+        EPStatement distance = cepAdm.createEPL("insert into DistanceStream select * from LHStateVectorWithFlightNumberAndDestinationCoordinatesStream");
+
         EPStatement bookingFilter = cepAdm.createEPL("insert into BookingStream select * from Booking(cabinClass.toString() != 'ECONOMY')");
 
         //EPStatement loungeInfo = cepAdm.createEPL("insert into LoungeInfoStream select *, lufthansa.Lufthansa.getAirportLounges(destinationAirport) as lounges from LHStateVectorWithFlightNumberAndDestinationAirportStream");
@@ -60,6 +64,8 @@ public class EPN {
         lhFilter.addListener(new CEPListener("lhFilter"));
         callsignToFlightNumber.addListener(new CEPListener("callsignToFlightNumber"));
         lhDestinationAirport.addListener(new CEPListener("lhDestinationAirport"));
+        lhDestinationCoordinates.addListener(new CEPListener("lhDestinationCoordinates"));
+        distance.addListener(new CEPListener("distance"));
         loungeInfo.addListener(new CEPListener("loungeInfo"));
         bookingFilter.addListener(new CEPListener("bookingFilter"));
         loungeSelector.addListener(new CEPListener("loungeSelector"));
