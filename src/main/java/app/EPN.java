@@ -19,6 +19,7 @@ import utils.Callsign;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.Date;
 
 public class EPN {
 
@@ -46,9 +47,11 @@ public class EPN {
 
         EPStatement lhDestinationAirport = cepAdm.createEPL("insert into LHStateVectorWithFlightNumberAndDestinationAirportStream select *, lufthansa.Lufthansa.getArrivalAirportCode(flightNumber) as destinationAirport from LHStateVectorWithFlightNumberStream");
 
-        EPStatement lhDestinationCoordinates = cepAdm.createEPL("insert into LHStateVectorWithFlightNumberAndDestinationCoordinatesStream select *, lufthansa.Lufthansa.getArrivalAirportCoords(flightNumber) as destinationCoordinates from LHStateVectorWithFlightNumberStream");
+        EPStatement lhDestinationCoordinates = cepAdm.createEPL("insert into LHStateVectorWithFlightNumberAndDestinationCoordinatesStream select *,lufthansa.Lufthansa.getArrivalAirportCoords(flightNumber) as destinationCoordinates  from LHStateVectorWithFlightNumberStream");
 
-        EPStatement distance = cepAdm.createEPL("insert into DistanceStream select * from LHStateVectorWithFlightNumberAndDestinationCoordinatesStream");
+        EPStatement Distance = cepAdm.createEPL("insert into DistanceVelocityStream select flightNumber, lastPositionUpdate,velocity, utils.GeoUtils.distance(latitude, longitude,cast(destinationCoordinates[0],double), cast(destinationCoordinates[1],double) ) as distance from LHStateVectorWithFlightNumberAndDestinationCoordinatesStream where destinationCoordinates is not null");
+        EPStatement Speed = cepAdm.createEPL("insert into DistanceAvgVelocityStream select distance, flightNumber, distance, utils.GeoUtils.msToKmh(cast(avg(velocity),double)) as speed  from DistanceVelocityStream#groupwin(flightNumber)#length(2) where velocity is not null");
+        EPStatement ETA = cepAdm.createEPL("insert into ETAStream select flightNumber, utils.GeoUtils.eta(distance,speed) as ETA  from DistanceAvgVelocityStream");
 
         EPStatement bookingFilter = cepAdm.createEPL("insert into BookingStream select * from Booking(cabinClass.toString() != 'ECONOMY')");
 
@@ -65,7 +68,9 @@ public class EPN {
         callsignToFlightNumber.addListener(new CEPListener("callsignToFlightNumber"));
         lhDestinationAirport.addListener(new CEPListener("lhDestinationAirport"));
         lhDestinationCoordinates.addListener(new CEPListener("lhDestinationCoordinates"));
-        distance.addListener(new CEPListener("distance"));
+        Distance.addListener(new CEPListener("Distance"));
+        Speed.addListener(new CEPListener("Speed"));
+        ETA.addListener(new CEPListener("ETA"));
         loungeInfo.addListener(new CEPListener("loungeInfo"));
         bookingFilter.addListener(new CEPListener("bookingFilter"));
         loungeSelector.addListener(new CEPListener("loungeSelector"));
@@ -81,7 +86,7 @@ public class EPN {
         Thread thread2 = new Thread() {
             public void run() {
                 // Enter your OWM key here
-                String owmKey = "bab296ceeacf70e2398b913ee2240566";
+                String owmKey = "aa00b89974868fc67ad23e7ff2267dff";
                 OWM owm = new OWM(owmKey);
                 owm.setUnit(OWM.Unit.METRIC);
                 sendWeatherEvents(owm);

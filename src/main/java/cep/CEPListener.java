@@ -13,5 +13,17 @@ public class CEPListener implements UpdateListener {
         if (id.equalsIgnoreCase("ife")) {
             System.out.println("(" + id + ") " + "Event matched: " + newData[0].getUnderlying());
         }
+        else if (id.equalsIgnoreCase("lhDestinationCoordinates")){
+            System.out.println("(" + id + ") " + "Event matched: " + newData[0].getUnderlying());
+        }
+        else if (id.equalsIgnoreCase("Distance")){
+            System.out.println("(" + id + ") " + "Event matched: " + newData[0].getUnderlying());
+        }
+        else if (id.equalsIgnoreCase("Speed")){
+            System.out.println("(" + id + ") " + "Event matched: " + newData[0].getUnderlying());
+        }
+        else if (id.equalsIgnoreCase("ETA")){
+            System.out.println("(" + id + ") " + "Event matched: " + newData[0].getUnderlying());
+        }
     }
 }
