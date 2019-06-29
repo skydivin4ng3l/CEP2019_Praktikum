@@ -49,14 +49,18 @@ public class EPN {
 
         EPStatement lhDestinationCoordinates = cepAdm.createEPL("insert into LHStateVectorWithFlightNumberAndDestinationCoordinatesStream select *,lufthansa.Lufthansa.getArrivalAirportCoords(flightNumber) as destinationCoordinates  from LHStateVectorWithFlightNumberStream");
 
-        EPStatement Distance = cepAdm.createEPL("insert into DistanceVelocityStream select flightNumber, lastPositionUpdate,velocity, utils.GeoUtils.distance(latitude, longitude,cast(destinationCoordinates[0],double), cast(destinationCoordinates[1],double) ) as distance from LHStateVectorWithFlightNumberAndDestinationCoordinatesStream where destinationCoordinates is not null");
+        EPStatement Distance = cepAdm.createEPL("insert into DistanceVelocityStream select flightNumber, velocity, utils.GeoUtils.distance(latitude, longitude,cast(destinationCoordinates[0],double), cast(destinationCoordinates[1],double) ) as distance from LHStateVectorWithFlightNumberAndDestinationCoordinatesStream where destinationCoordinates is not null");
         EPStatement Speed = cepAdm.createEPL("insert into DistanceAvgVelocityStream select distance, flightNumber, distance, utils.GeoUtils.msToKmh(cast(avg(velocity),double)) as speed  from DistanceVelocityStream#groupwin(flightNumber)#length(2) where velocity is not null");
         EPStatement ETA = cepAdm.createEPL("insert into ETAStream select flightNumber, utils.GeoUtils.eta(distance,speed) as ETA  from DistanceAvgVelocityStream");
 
-        EPStatement bookingFilter = cepAdm.createEPL("insert into BookingStream select * from Booking(cabinClass.toString() != 'ECONOMY')");
+//        EPStatement bookingAllFilter = cepAdm.createEPL("insert into BookingAllStream select * from Booking");
+//        EPStatement OnBoardSights = cepAdm.createEPL("insert into OnBoardSightsStream select BookingAllStream.flightNumber, cities.Cities.getCity(FlightInfo.latitude,FlightInfo.longitude) as sightes from LHStateVectorWithFlightNumberStream.win:length(100) as FlightInfo JOIN BookingAllStream#unique(passengerName) as Booking where FlightInfo.flightNumber = BookingAllStream.flightNumber");
+////        do no longer see why we need the passenger here,...since all the passengers of this flight see the same things, so no need for the booking all Stream?!
+        EPStatement OnBoardSights = cepAdm.createEPL("insert into OnBoardSightsStream select flightNumber, cities.Cities.getCity(cast(latitude,double),cast(longitude,double)) as sightes from LHStateVectorWithFlightNumberStream");
 
+        EPStatement bookingNonEconomyFilter = cepAdm.createEPL("insert into BookingNonEconomyStream select * from Booking(cabinClass.toString() != 'ECONOMY')");
         //EPStatement loungeInfo = cepAdm.createEPL("insert into LoungeInfoStream select *, lufthansa.Lufthansa.getAirportLounges(destinationAirport) as lounges from LHStateVectorWithFlightNumberAndDestinationAirportStream");
-        EPStatement loungeInfo = cepAdm.createEPL("insert into LoungeInfoStream select *, lufthansa.Lufthansa.getAirportLounges(destinationAirport) as lounges from LHStateVectorWithFlightNumberAndDestinationAirportStream.win:length(100) as DestinationAirport JOIN BookingStream#unique(flightNumber) as Booking where DestinationAirport.flightNumber = BookingStream.flightNumber");
+        EPStatement loungeInfo = cepAdm.createEPL("insert into LoungeInfoStream select *, lufthansa.Lufthansa.getAirportLounges(destinationAirport) as lounges from LHStateVectorWithFlightNumberAndDestinationAirportStream.win:length(100) as DestinationAirport JOIN BookingNonEconomyStream#unique(flightNumber) as Booking where DestinationAirport.flightNumber = BookingNonEconomyStream.flightNumber");
 
         EPStatement loungeSelector = cepAdm.createEPL("insert into OutStream9 select Booking.passengerName, DestinationAirport.flightNumber, DestinationAirport.destinationAirport, " +
                "lounges[0].name as loungeName, lounges[0].showers as showers from LoungeInfoStream");
@@ -72,7 +76,9 @@ public class EPN {
         Speed.addListener(new CEPListener("Speed"));
         ETA.addListener(new CEPListener("ETA"));
         loungeInfo.addListener(new CEPListener("loungeInfo"));
-        bookingFilter.addListener(new CEPListener("bookingFilter"));
+        bookingNonEconomyFilter.addListener(new CEPListener("BookingNonEconomyStream"));
+//        bookingAllFilter.addListener(new CEPListener("bookingAllFilter"));
+        OnBoardSights.addListener(new CEPListener("OnBoardSights"));
         loungeSelector.addListener(new CEPListener("loungeSelector"));
         ife.addListener(new CEPListener("ife"));
 
