@@ -10,10 +10,10 @@ public class CEPListener implements UpdateListener {
         this.id = id;
     }
     public void update(EventBean[] newData, EventBean[] oldData) {
-        /*if (id.equalsIgnoreCase("ife")) {
+        if (id.equalsIgnoreCase("ife")) {
             System.out.println("(" + id + ") " + "Event matched: " + newData[0].getUnderlying());
         }
-        else if (id.equalsIgnoreCase("lhDestinationCoordinates")){
+        /*else if (id.equalsIgnoreCase("lhDestinationCoordinates")){
             System.out.println("(" + id + ") " + "Event matched: " + newData[0].getUnderlying());
         }
         else if (id.equalsIgnoreCase("Distance")){
@@ -21,11 +21,20 @@ public class CEPListener implements UpdateListener {
         }
         else if (id.equalsIgnoreCase("Speed")){
             System.out.println("(" + id + ") " + "Event matched: " + newData[0].getUnderlying());
-        }
-        else*/ if (id.equalsIgnoreCase("ETA")){
+        }*/
+        else if (id.equalsIgnoreCase("ETA")){
             System.out.println("(" + id + ") " + "Event matched: " + newData[0].getUnderlying());
         }
         else if (id.equalsIgnoreCase("OnBoardSights")){
+            System.out.println("(" + id + ") " + "Event matched: " + newData[0].getUnderlying());
+        }/*
+        else if (id.equalsIgnoreCase("CurrentWeather")){
+            System.out.println("(" + id + ") " + "Event matched: " + newData[0].getUnderlying());
+        }
+        else if (id.equalsIgnoreCase("lhDestinationCity")){
+            System.out.println("(" + id + ") " + "Event matched: " + newData[0].getUnderlying());
+        }*/
+        else if (id.equalsIgnoreCase("DestinationWeatherSight")){
             System.out.println("(" + id + ") " + "Event matched: " + newData[0].getUnderlying());
         }
     }
