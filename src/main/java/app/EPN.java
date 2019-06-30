@@ -155,7 +155,15 @@ public class EPN {
     public static void sendBookingEvents(String flightNumber) {
         for (int i = 0; i < 10; i++) {
             int randomNum = ThreadLocalRandom.current().nextInt(0, 4);
-            cepRT.sendEvent(new Booking(flightNumber, CabinClass.values()[randomNum], faker.name().fullName()));
+            String connectionFlightNumber = null;
+            // just one person has a connection flight if available // regex change to match IATA
+            if (i==0 ) {
+                if (flightNumber.matches("[ \t\n\f\r]*(EW|LH|OS|LX)[0-9]{1,4}[ \t\n\f\r]*")) {
+                    connectionFlightNumber = lufthansa.Lufthansa.getConnectionFlight(flightNumber);
+                }
+            }
+            cepRT.sendEvent(new Booking(flightNumber, CabinClass.values()[randomNum], faker.name().fullName(), connectionFlightNumber));
+
         }
     }
 

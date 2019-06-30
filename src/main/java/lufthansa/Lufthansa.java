@@ -125,6 +125,22 @@ public class Lufthansa {
         return null;
     }
 
+    public static String getConnectionFlight(String flightNumber) {
+        if (flightNumberBlacklist.contains(flightNumber)){
+            return null;
+        }
+        String arrivalAirportCode = getArrivalAirportCode(flightNumber);
+        String arrivalTime = getArrivalTime(flightNumber);
+        String statusAsJson = get("operations/flightstatus/departures/" + arrivalAirportCode + "/" + arrivalTime +"?limit=1" );
+        if (statusAsJson != null) {
+            String connectionFlightNumber = getDepartingFlightNumberFromJson(statusAsJson);
+            return connectionFlightNumber;
+        }
+        //Doesn't make sense here to block cause the reason is mainly because there is no connectionflight
+        // flightNumberBlacklist.add(flightNumber);
+        return null;
+    }
+
     private static FlightStatus getFlightStatus(String flightNumber) {
         String statusAsJson = get("operations/flightstatus/" + flightNumber + "/" + LocalDate.now().toString());
         if (statusAsJson != null) {
@@ -308,6 +324,16 @@ public class Lufthansa {
             JSONArray name = (JSONArray) ((JSONObject) jsonObject.get("Names")).get("Name");
             return ((JSONObject) name.get(0)).getString("$");
         }
+    }
+
+    private static String getDepartingFlightNumberFromJson(String statusAsJson) {
+        JSONObject flight = getFlightObject(statusAsJson);
+        if (flight.has("OperatingCarrier")) {
+            if ( ((JSONObject) flight.get("OperatingCarrier")).has("FlightNumber")) {
+                return ((JSONObject) flight.get("OperatingCarrier")).get("FlightNumber").toString();
+            }
+        }
+        return null;
     }
 
     private static String getArrivalAirportFromJson(String statusAsJson) {

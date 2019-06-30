@@ -4,11 +4,13 @@ public class Booking {
     private String flightNumber;
     private CabinClass cabinClass;
     private String passengerName;
+    private String connectionFlightNumber;
 
-    public Booking(String flightNumber, CabinClass cabinClass, String passengerName) {
+    public Booking(String flightNumber, CabinClass cabinClass, String passengerName, String connectionFlightNumber) {
         this.flightNumber = flightNumber;
         this.cabinClass = cabinClass;
         this.passengerName = passengerName;
+        this.connectionFlightNumber = connectionFlightNumber;
     }
 
     public String getFlightNumber() {
@@ -35,4 +37,11 @@ public class Booking {
         this.passengerName = passengerName;
     }
 
+    public String getConnectionFlightNumber() {
+        return connectionFlightNumber;
+    }
+
+    public void setConnectionFlightNumber(String connectionFlightNumber) {
+        this.connectionFlightNumber = connectionFlightNumber;
+    }
 }
