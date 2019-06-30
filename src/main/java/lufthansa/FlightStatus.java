@@ -1,26 +1,22 @@
 package lufthansa;
 
-import org.json.JSONArray;
-import org.json.JSONObject;
-
-import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
-
 class FlightStatus {
     private String flightNumber;
     private Airport departure;
     private Airport arrival;
     private String departureGate;
     private String arrivalGate;
+    private String departureTime;
+    private String arrivalTime;
 
-    public FlightStatus(String flightNumber, Airport departure, Airport arrival, String departureGate, String arrivalGate) {
+    public FlightStatus(String flightNumber, Airport departure, Airport arrival, String departureGate, String departureTime, String arrivalGate, String arrivalTime) {
         this.flightNumber = flightNumber;
         this.departure = departure;
         this.arrival = arrival;
         this.departureGate = departureGate;
+        this.departureTime = departureTime;
         this.arrivalGate = arrivalGate;
+        this.arrivalTime = arrivalTime;
     }
 
     public String getFlightNumber() {
@@ -47,6 +43,14 @@ class FlightStatus {
         this.departureGate = departureGate;
     }
 
+    public String getDepartureTime() {
+        return departureTime;
+    }
+
+    public void setDepartureTime(String departureTime) {
+        this.departureTime = departureTime;
+    }
+
     public Airport getArrival() {
         return arrival;
     }
@@ -61,5 +65,13 @@ class FlightStatus {
 
     public void setArrivalGate(String arrivalGate) {
         this.arrivalGate = arrivalGate;
+    }
+
+    public String getArrivalTime() {
+        return arrivalTime;
+    }
+
+    public void setArrivalTime(String arrivalTime) {
+        this.arrivalTime = arrivalTime;
     }
 }

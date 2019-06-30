@@ -54,11 +54,12 @@ public class EPN {
         EPStatement currentWeather = cepAdm.createEPL("insert into WeatherStream select coordData, weatherList, cityName from CurrentWeather");
         EPStatement destinationWeatherSight = cepAdm.createEPL("insert into DestinationWeatherSightInfoStream select destination.flightNumber, destination.destinationCity, weather.weatherList, cities.Cities.getSight(cast(destination.destinationCity,String),cast(weather.weatherList,String)) as destinationSights from DestinationCityStream#length(100) as destination join WeatherStream#length(100) as weather where weather.cityName = destination.destinationCity and destination.destinationCity !='none'");
 
-        EPStatement distance = cepAdm.createEPL("insert into DistanceVelocityStream select flightNumber, velocity, utils.GeoUtils.distance(latitude, longitude,cast(destinationCoordinates[0],double), cast(destinationCoordinates[1],double) ) as distance from LHStateVectorWithFlightNumberAndDestinationCoordinatesStream where destinationCoordinates is not null");
+        /*----------------Reduced amount of Streams cause of Read TimeOut ------ have to figure out why this happens or reduce amount of simultaneous streams*/
+      /*   EPStatement distance = cepAdm.createEPL("insert into DistanceVelocityStream select flightNumber, velocity, utils.GeoUtils.distance(latitude, longitude,cast(destinationCoordinates[0],double), cast(destinationCoordinates[1],double) ) as distance from LHStateVectorWithFlightNumberAndDestinationCoordinatesStream where destinationCoordinates is not null");
         EPStatement speed = cepAdm.createEPL("insert into DistanceAvgVelocityStream select distance, flightNumber, distance, utils.GeoUtils.msToKmh(cast(avg(velocity),double)) as speed  from DistanceVelocityStream#groupwin(flightNumber)#length(2) where velocity is not null");
-        EPStatement eta = cepAdm.createEPL("insert into ETAStream select flightNumber, utils.GeoUtils.eta(distance,speed) as ETA  from DistanceAvgVelocityStream");
+        EPStatement eta = cepAdm.createEPL("insert into ETAStream select flightNumber, utils.GeoUtils.eta(distance,speed) as ETA  from DistanceAvgVelocityStream");*/
 
-        EPStatement gates = cepAdm.createEPL("insert into GatesStream select flightNumber, lufthansa.Lufthansa.getDepartureAirportGate(flightNumber) as DepartureGate, lufthansa.Lufthansa.getArrivalAirportGate(flightNumber) as ArrivalGate from LHStateVectorWithFlightNumberStream");
+        EPStatement gates = cepAdm.createEPL("insert into GatesStream select flightNumber, lufthansa.Lufthansa.getDepartureAirportGate(flightNumber) as DepartureGate, lufthansa.Lufthansa.getDepartureTime(flightNumber) as LocalDepartureTime, lufthansa.Lufthansa.getArrivalAirportGate(flightNumber) as ArrivalGate, lufthansa.Lufthansa.getArrivalTime(flightNumber) as LocalArrivalTime from LHStateVectorWithFlightNumberStream");
 
 
 //        EPStatement bookingAllFilter = cepAdm.createEPL("insert into BookingAllStream select * from Booking");
@@ -81,9 +82,9 @@ public class EPN {
         callsignToFlightNumber.addListener(new CEPListener("callsignToFlightNumber"));
         lhDestinationAirport.addListener(new CEPListener("lhDestinationAirport"));
         lhDestinationCoordinates.addListener(new CEPListener("lhDestinationCoordinates"));
-        distance.addListener(new CEPListener("Distance"));
+     /*   distance.addListener(new CEPListener("Distance"));
         speed.addListener(new CEPListener("Speed"));
-        eta.addListener(new CEPListener("ETA"));
+        eta.addListener(new CEPListener("ETA"));*/
         gates.addListener(new CEPListener("Gates"));
         lhDestinationCity.addListener(new CEPListener("lhDestinationCity"));
         currentWeather.addListener(new CEPListener("CurrentWeather"));
