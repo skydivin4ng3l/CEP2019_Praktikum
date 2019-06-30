@@ -62,6 +62,7 @@ public class EPN {
 //        EPStatement OnBoardSights = cepAdm.createEPL("insert into OnBoardSightsStream select BookingAllStream.flightNumber, cities.Cities.getCity(FlightInfo.latitude,FlightInfo.longitude) as sightes from LHStateVectorWithFlightNumberStream.win:length(100) as FlightInfo JOIN BookingAllStream#unique(passengerName) as Booking where FlightInfo.flightNumber = BookingAllStream.flightNumber");
 ////        do no longer see why we need the passenger here,...since all the passengers of this flight see the same things, so no need for the booking all Stream?!
         EPStatement OnBoardSights = cepAdm.createEPL("insert into OnBoardSightsStream select flightNumber, cities.Cities.getCity(cast(latitude,double),cast(longitude,double)) as sightes from LHStateVectorWithFlightNumberStream");
+        EPStatement ifeOnBoardSights = cepAdm.createEPL("insert into FinalOnBoardSightsStream select * from OnBoardSightsStream where sights != 'none'");
 
         EPStatement bookingNonEconomyFilter = cepAdm.createEPL("insert into BookingNonEconomyStream select * from Booking(cabinClass.toString() != 'ECONOMY')");
         //EPStatement loungeInfo = cepAdm.createEPL("insert into LoungeInfoStream select *, lufthansa.Lufthansa.getAirportLounges(destinationAirport) as lounges from LHStateVectorWithFlightNumberAndDestinationAirportStream");
@@ -89,6 +90,7 @@ public class EPN {
         OnBoardSights.addListener(new CEPListener("OnBoardSights"));
         loungeSelector.addListener(new CEPListener("loungeSelector"));
         ife.addListener(new CEPListener("ife"));
+        ifeOnBoardSights.addListener(new CEPListener("ifeOnBoardSights"));
 
         // send events to engine
         Thread thread1 = new Thread() {
