@@ -19,7 +19,7 @@ class FlightStatus {
         this.flightNumber = flightNumber;
         this.departure = departure;
         this.arrival = arrival;
-        this.arrivalGate = departureGate;
+        this.departureGate = departureGate;
         this.arrivalGate = arrivalGate;
     }
 

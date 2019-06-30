@@ -43,26 +43,10 @@ public class Lufthansa {
         if (status != null) {
             return status.getDeparture().getCode();
         }
-        String statusAsJson = get("operations/flightstatus/" + flightNumber + "/" + LocalDate.now().toString());
-        if (statusAsJson != null) {
-            String departureAirportCode = getDepartureAirportFromJson(statusAsJson);
-            if (!airports.containsKey(departureAirportCode)) {
-                Airport airport = new Airport(departureAirportCode);
-                airports.put(departureAirportCode, airport);
-            }
-            String arrivalAirportCode = getArrivalAirportFromJson(statusAsJson);
-            if (!airports.containsKey(arrivalAirportCode)) {
-                Airport airport = new Airport(arrivalAirportCode);
-                airports.put(arrivalAirportCode, airport);
-            }
-            String departureAirportGate = getDepartureAirportGateFromJson(statusAsJson);
-            String arrivalAirportGate = getArrivalAirportGateFromJson(statusAsJson);
-
-            status = new FlightStatus(flightNumber, airports.get(departureAirportCode), airports.get(arrivalAirportCode), departureAirportGate, arrivalAirportGate );
-            flightStatuses.put(flightNumber, status);
-            return departureAirportCode;
+        status = getFlightStatus(flightNumber);
+        if (status != null) {
+            return status.getDeparture().getCode();
         }
-        flightNumberBlacklist.add(flightNumber);
         return null;
     }
 
@@ -74,26 +58,10 @@ public class Lufthansa {
         if (status != null) {
             return status.getArrival().getCode();
         }
-        String statusAsJson = get("operations/flightstatus/" + flightNumber + "/" + LocalDate.now().toString());
-        if (statusAsJson != null) {
-            String   departureAirportCode = getDepartureAirportFromJson(statusAsJson);
-            if (!airports.containsKey(departureAirportCode)) {
-                Airport airport = new Airport(departureAirportCode);
-                airports.put(departureAirportCode, airport);
-            }
-            String arrivalAirportCode = getArrivalAirportFromJson(statusAsJson);
-            if (!airports.containsKey(arrivalAirportCode)) {
-                Airport airport = new Airport(arrivalAirportCode);
-                airports.put(arrivalAirportCode, airport);
-            }
-            String departureAirportGate = getDepartureAirportGateFromJson(statusAsJson);
-            String arrivalAirportGate = getArrivalAirportGateFromJson(statusAsJson);
-
-            status = new FlightStatus(flightNumber, airports.get(departureAirportCode), airports.get(arrivalAirportCode), departureAirportGate, arrivalAirportGate );
-            flightStatuses.put(flightNumber, status);
-            return arrivalAirportCode;
+        status = getFlightStatus(flightNumber);
+        if (status != null) {
+            return status.getArrival().getCode();
         }
-        flightNumberBlacklist.add(flightNumber);
         return null;
     }
     // Gates may be changed midflight, currently this would not be covered that
@@ -105,6 +73,29 @@ public class Lufthansa {
         if (status != null) {
             return status.getArrivalGate();
         }
+        status = getFlightStatus(flightNumber);
+        if (status != null) {
+            return status.getArrivalGate();
+        }
+        return null;
+    }
+
+    public static String getDepartureAirportGate(String flightNumber) {
+        if (flightNumberBlacklist.contains(flightNumber)) {
+            return null;
+        }
+        FlightStatus status = flightStatuses.get(flightNumber);
+        if (status != null) {
+            return status.getDepartureGate();
+        }
+        status = getFlightStatus(flightNumber);
+        if (status != null) {
+            return status.getDepartureGate();
+        }
+        return null;
+    }
+
+    private static FlightStatus getFlightStatus(String flightNumber) {
         String statusAsJson = get("operations/flightstatus/" + flightNumber + "/" + LocalDate.now().toString());
         if (statusAsJson != null) {
             String   departureAirportCode = getDepartureAirportFromJson(statusAsJson);
@@ -120,9 +111,9 @@ public class Lufthansa {
             String departureAirportGate = getDepartureAirportGateFromJson(statusAsJson);
             String arrivalAirportGate = getArrivalAirportGateFromJson(statusAsJson);
 
-            status = new FlightStatus(flightNumber, airports.get(departureAirportCode), airports.get(arrivalAirportCode), departureAirportGate, arrivalAirportGate );
+            FlightStatus status = new FlightStatus(flightNumber, airports.get(departureAirportCode), airports.get(arrivalAirportCode), departureAirportGate, arrivalAirportGate );
             flightStatuses.put(flightNumber, status);
-            return arrivalAirportGate;
+            return status;
         }
         flightNumberBlacklist.add(flightNumber);
         return null;
@@ -288,13 +279,14 @@ public class Lufthansa {
 
     private static String getArrivalAirportFromJson(String statusAsJson) {
         JSONObject obj = new JSONObject(statusAsJson);
-        if (((JSONObject) ((JSONObject) obj.get("FlightStatusResource")).get("Flights")).get("Flight") instanceof JSONObject) {
-            JSONObject flight = (JSONObject) ((JSONObject) ((JSONObject) obj.get("FlightStatusResource")).get("Flights")).get("Flight");
-            return ((JSONObject) flight.get("Arrival")).getString("AirportCode");
-        } else {
-            JSONArray flight = (JSONArray) ((JSONObject) ((JSONObject) obj.get("FlightStatusResource")).get("Flights")).get("Flight");
-            return ((JSONObject) ((JSONObject) flight.get(0)).get("Arrival")).getString("AirportCode");
-        }
+        JSONObject flight = getFlightObject(obj);
+        return ((JSONObject) flight.get("Arrival")).getString("AirportCode");
+    }
+
+    private static String getDepartureAirportFromJson(String statusAsJson) {
+        JSONObject obj = new JSONObject(statusAsJson);
+        JSONObject flight = getFlightObject(obj);
+        return ((JSONObject) flight.get("Departure")).getString("AirportCode");
     }
 
     private static String getArrivalAirportGateFromJson(String statusAsJson) {
@@ -302,6 +294,13 @@ public class Lufthansa {
         JSONObject flight = getFlightObject(obj);
         JSONObject arrival = (JSONObject) flight.get("Arrival");
         return getGateInfo(arrival);
+    }
+
+    private static String getDepartureAirportGateFromJson(String statusAsJson) {
+        JSONObject obj = new JSONObject(statusAsJson);
+        JSONObject flight = getFlightObject(obj);
+        JSONObject departure = (JSONObject) flight.get("Departure");
+        return getGateInfo(departure);
     }
 
     @NotNull
@@ -326,24 +325,6 @@ public class Lufthansa {
             flight = (JSONObject) ((JSONArray) ((JSONObject) ((JSONObject) statusAsJson.get("FlightStatusResource")).get("Flights")).get("Flight")).get(0);
         }
         return flight;
-    }
-
-    private static String getDepartureAirportFromJson(String statusAsJson) {
-        JSONObject obj = new JSONObject(statusAsJson);
-        if (((JSONObject) ((JSONObject) obj.get("FlightStatusResource")).get("Flights")).get("Flight") instanceof JSONObject) {
-            JSONObject flight = (JSONObject) ((JSONObject) ((JSONObject) obj.get("FlightStatusResource")).get("Flights")).get("Flight");
-            return ((JSONObject) flight.get("Departure")).getString("AirportCode");
-        } else {
-            JSONArray flight = (JSONArray) ((JSONObject) ((JSONObject) obj.get("FlightStatusResource")).get("Flights")).get("Flight");
-            return ((JSONObject) ((JSONObject) flight.get(0)).get("Departure")).getString("AirportCode");
-        }
-    }
-
-    private static String getDepartureAirportGateFromJson(String statusAsJson) {
-        JSONObject obj = new JSONObject(statusAsJson);
-        JSONObject flight = getFlightObject(obj);
-        JSONObject departure = (JSONObject) flight.get("Departure");
-        return getGateInfo(departure);
     }
 
     private static Object[] getArrivalCoordsFromJson(String statusAsJson) {

@@ -58,7 +58,7 @@ public class EPN {
         EPStatement speed = cepAdm.createEPL("insert into DistanceAvgVelocityStream select distance, flightNumber, distance, utils.GeoUtils.msToKmh(cast(avg(velocity),double)) as speed  from DistanceVelocityStream#groupwin(flightNumber)#length(2) where velocity is not null");
         EPStatement eta = cepAdm.createEPL("insert into ETAStream select flightNumber, utils.GeoUtils.eta(distance,speed) as ETA  from DistanceAvgVelocityStream");
 
-        EPStatement gates = cepAdm.createEPL("insert into GatesStream select flightNumber, lufthansa.Lufthansa.getArrivalAirportGate(flightNumber) as ArrivalGate from LHStateVectorWithFlightNumberStream");
+        EPStatement gates = cepAdm.createEPL("insert into GatesStream select flightNumber, lufthansa.Lufthansa.getDepartureAirportGate(flightNumber) as DepartureGate, lufthansa.Lufthansa.getArrivalAirportGate(flightNumber) as ArrivalGate from LHStateVectorWithFlightNumberStream");
 
 
 //        EPStatement bookingAllFilter = cepAdm.createEPL("insert into BookingAllStream select * from Booking");
