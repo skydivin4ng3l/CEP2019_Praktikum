@@ -330,7 +330,10 @@ public class Lufthansa {
         JSONObject flight = getFlightObject(statusAsJson);
         if (flight.has("OperatingCarrier")) {
             if ( ((JSONObject) flight.get("OperatingCarrier")).has("FlightNumber")) {
-                return ((JSONObject) flight.get("OperatingCarrier")).get("FlightNumber").toString();
+                String airLineID = ((JSONObject) flight.get("OperatingCarrier")).get("AirlineID").toString();
+                String number = ((JSONObject) flight.get("OperatingCarrier")).get("FlightNumber").toString();
+                String flightNumber =airLineID+number;
+                return flightNumber;
             }
         }
         return null;

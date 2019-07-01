@@ -51,31 +51,32 @@ public class EPN {
         //get city for destination seems to produce a lot of "none" cities,...don't know how to easily access coordData's lat and lon as join attributes for destinationWeatherSight from OWM
         EPStatement lhDestinationCity = cepAdm.createEPL("insert into DestinationCityStream select flightNumber, cities.Cities.getCity(cast(destinationCoordinates[0],double), cast(destinationCoordinates[1],double) ) as destinationCity from LHStateVectorWithFlightNumberAndDestinationCoordinatesStream where destinationCoordinates is not null");
 
-        EPStatement currentWeather = cepAdm.createEPL("insert into WeatherStream select coordData, weatherList, cityName from CurrentWeather");
-        EPStatement destinationWeatherSight = cepAdm.createEPL("insert into DestinationWeatherSightInfoStream select destination.flightNumber, destination.destinationCity, weather.weatherList, cities.Cities.getSight(cast(destination.destinationCity,String),cast(weather.weatherList,String)) as destinationSights from DestinationCityStream#length(100) as destination join WeatherStream#length(100) as weather where weather.cityName = destination.destinationCity and destination.destinationCity !='none'");
-
         /*----------------Reduced amount of Streams cause of Read TimeOut ------ have to figure out why this happens or reduce amount of simultaneous streams*/
+        /*EPStatement currentWeather = cepAdm.createEPL("insert into WeatherStream select coordData, weatherList, cityName from CurrentWeather");
+        EPStatement destinationWeatherSight = cepAdm.createEPL("insert into DestinationWeatherSightInfoStream select destination.flightNumber, destination.destinationCity, weather.weatherList, cities.Cities.getSight(cast(destination.destinationCity,String),cast(weather.weatherList,String)) as destinationSights from DestinationCityStream#length(100) as destination join WeatherStream#length(100) as weather where weather.cityName = destination.destinationCity and destination.destinationCity !='none'");
+*/
       /*   EPStatement distance = cepAdm.createEPL("insert into DistanceVelocityStream select flightNumber, velocity, utils.GeoUtils.distance(latitude, longitude,cast(destinationCoordinates[0],double), cast(destinationCoordinates[1],double) ) as distance from LHStateVectorWithFlightNumberAndDestinationCoordinatesStream where destinationCoordinates is not null");
         EPStatement speed = cepAdm.createEPL("insert into DistanceAvgVelocityStream select distance, flightNumber, distance, utils.GeoUtils.msToKmh(cast(avg(velocity),double)) as speed  from DistanceVelocityStream#groupwin(flightNumber)#length(2) where velocity is not null");
         EPStatement eta = cepAdm.createEPL("insert into ETAStream select flightNumber, utils.GeoUtils.eta(distance,speed) as ETA  from DistanceAvgVelocityStream");*/
+        /*----------------Reduced amount of Streams cause of Read TimeOut ------ have to figure out why this happens or reduce amount of simultaneous streams*/
 
-        EPStatement gates = cepAdm.createEPL("insert into GatesStream select flightNumber, lufthansa.Lufthansa.getDepartureAirportGate(flightNumber) as DepartureGate, lufthansa.Lufthansa.getDepartureTime(flightNumber) as LocalDepartureTime, lufthansa.Lufthansa.getArrivalAirportGate(flightNumber) as ArrivalGate, lufthansa.Lufthansa.getArrivalTime(flightNumber) as LocalArrivalTime from LHStateVectorWithFlightNumberStream");
+        EPStatement bookingAll = cepAdm.createEPL("insert into BookingAllStream select * from Booking");
+        //not requested Verification stream of arrival/departure gates and time implementation
+        //EPStatement gates = cepAdm.createEPL("insert into GatesStream select flightNumber, lufthansa.Lufthansa.getDepartureAirportGate(flightNumber) as DepartureGate, lufthansa.Lufthansa.getDepartureTime(flightNumber) as LocalDepartureTime, lufthansa.Lufthansa.getArrivalAirportGate(flightNumber) as ArrivalGate, lufthansa.Lufthansa.getArrivalTime(flightNumber) as LocalArrivalTime from LHStateVectorWithFlightNumberStream");
+        //do we really need the statevektor for this? All the information we also get from the bookingStream if we actually need the stream and can not just use the Booking
+        EPStatement connectionFlightGates = cepAdm.createEPL("insert into ConnectionFlightGatesStream select booking.passengerName as passengerName, booking.flightNumber as flightNumber, booking.connectionFlightNumber as connectionFlightNumber, lufthansa.Lufthansa.getDepartureAirportGate(booking.connectionFlightNumber) as DepartureGateConnectionFlight, lufthansa.Lufthansa.getDepartureTime(booking.connectionFlightNumber) as DepartureLocalTimeConnectionFlight, lufthansa.Lufthansa.getArrivalAirportGate(booking.flightNumber) as ArrivalGate, lufthansa.Lufthansa.getArrivalTime(booking.flightNumber) as ArrivalLocalTime from LHStateVectorWithFlightNumberStream#length(10) as flight join BookingAllStream#length(10) as booking where booking.flightNumber = flight.flightNumber and booking.connectionFlightNumber is not null");
 
 
-//        EPStatement bookingAllFilter = cepAdm.createEPL("insert into BookingAllStream select * from Booking");
-//        EPStatement OnBoardSights = cepAdm.createEPL("insert into OnBoardSightsStream select BookingAllStream.flightNumber, cities.Cities.getCity(FlightInfo.latitude,FlightInfo.longitude) as sights from LHStateVectorWithFlightNumberStream.win:length(100) as FlightInfo JOIN BookingAllStream#unique(passengerName) as Booking where FlightInfo.flightNumber = BookingAllStream.flightNumber");
-////        do no longer see why we need the passenger here,...since all the passengers of this flight see the same things, so no need for the booking all Stream?!
         EPStatement onBoardSights = cepAdm.createEPL("insert into OnBoardSightsStream select flightNumber, cities.Cities.getCity(cast(latitude,double),cast(longitude,double)) as sights from LHStateVectorWithFlightNumberStream");
-        EPStatement ifeOnBoardSights = cepAdm.createEPL("insert into FinalOnBoardSightsStream select * from OnBoardSightsStream where sights != 'none'");
+//        EPStatement ifeOnBoardSights = cepAdm.createEPL("insert into FinalOnBoardSightsStream select * from OnBoardSightsStream where sights != 'none'");
 
         EPStatement bookingNonEconomyFilter = cepAdm.createEPL("insert into BookingNonEconomyStream select * from Booking(cabinClass.toString() != 'ECONOMY')");
-        //EPStatement loungeInfo = cepAdm.createEPL("insert into LoungeInfoStream select *, lufthansa.Lufthansa.getAirportLounges(destinationAirport) as lounges from LHStateVectorWithFlightNumberAndDestinationAirportStream");
         EPStatement loungeInfo = cepAdm.createEPL("insert into LoungeInfoStream select *, lufthansa.Lufthansa.getAirportLounges(destinationAirport) as lounges from LHStateVectorWithFlightNumberAndDestinationAirportStream.win:length(100) as DestinationAirport JOIN BookingNonEconomyStream#unique(flightNumber) as Booking where DestinationAirport.flightNumber = BookingNonEconomyStream.flightNumber");
 
         EPStatement loungeSelector = cepAdm.createEPL("insert into OutStream9 select Booking.passengerName, DestinationAirport.flightNumber, DestinationAirport.destinationAirport, " +
                "lounges[0].name as loungeName, lounges[0].showers as showers from LoungeInfoStream");
 
-        EPStatement ife = cepAdm.createEPL("insert into FinalStream select * from OutStream9");
+//        EPStatement ife = cepAdm.createEPL("insert into FinalStream select * from OutStream9");
 
         // event listener
         lhFilter.addListener(new CEPListener("lhFilter"));
@@ -85,17 +86,18 @@ public class EPN {
      /*   distance.addListener(new CEPListener("Distance"));
         speed.addListener(new CEPListener("Speed"));
         eta.addListener(new CEPListener("ETA"));*/
-        gates.addListener(new CEPListener("Gates"));
+//        gates.addListener(new CEPListener("Gates"));
         lhDestinationCity.addListener(new CEPListener("lhDestinationCity"));
-        currentWeather.addListener(new CEPListener("CurrentWeather"));
-        destinationWeatherSight.addListener(new CEPListener("DestinationWeatherSight"));
+        /*currentWeather.addListener(new CEPListener("CurrentWeather"));
+        destinationWeatherSight.addListener(new CEPListener("DestinationWeatherSight"));*/
         loungeInfo.addListener(new CEPListener("loungeInfo"));
+        connectionFlightGates.addListener(new CEPListener("connectionFlightGates"));
         bookingNonEconomyFilter.addListener(new CEPListener("BookingNonEconomyStream"));
-//        bookingAllFilter.addListener(new CEPListener("bookingAllFilter"));
+        bookingAll.addListener(new CEPListener("bookingAll"));
         onBoardSights.addListener(new CEPListener("OnBoardSights"));
         loungeSelector.addListener(new CEPListener("loungeSelector"));
-        ife.addListener(new CEPListener("ife"));
-        ifeOnBoardSights.addListener(new CEPListener("ifeOnBoardSights"));
+//        ife.addListener(new CEPListener("ife"));
+//        ifeOnBoardSights.addListener(new CEPListener("ifeOnBoardSights"));
 
         // send events to engine
         Thread thread1 = new Thread() {
