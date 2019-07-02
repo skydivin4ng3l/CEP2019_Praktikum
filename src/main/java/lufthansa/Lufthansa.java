@@ -131,6 +131,9 @@ public class Lufthansa {
         }
         String arrivalAirportCode = getArrivalAirportCode(flightNumber);
         String arrivalTime = getArrivalTime(flightNumber);
+        if (arrivalAirportCode == null || arrivalTime == null) {
+            return null;
+        }
         String statusAsJson = get("operations/flightstatus/departures/" + arrivalAirportCode + "/" + arrivalTime +"?limit=1" );
         if (statusAsJson != null) {
             String connectionFlightNumber = null;
@@ -146,7 +149,30 @@ public class Lufthansa {
         return null;
     }
 
+    public static ArrayList<String> getConnectionFlights(String flightNumber) {
+        ArrayList<String> connectionFlightNumbers= new ArrayList<String>();
+        if (flightNumberBlacklist.contains(flightNumber)){
+            return connectionFlightNumbers;
+        }
+        String arrivalAirportCode = getArrivalAirportCode(flightNumber);
+        String arrivalTime = getArrivalTime(flightNumber);
+        if (arrivalAirportCode == null || arrivalTime == null) {
+            return connectionFlightNumbers;
+        }
+        String statusAsJson = get("operations/flightstatus/departures/" + arrivalAirportCode + "/" + arrivalTime +"?limit=5" );
+        if (statusAsJson != null) {
+            connectionFlightNumbers = getDepartingFlightNumbersFromJson(statusAsJson);
+
+        }
+        //Doesn't make sense here to block cause the reason is mainly because there is no connectionflight
+        // flightNumberBlacklist.add(flightNumber);
+        return connectionFlightNumbers;
+    }
+
     private static FlightStatus getFlightStatus(String flightNumber) {
+        if (flightNumber== null){
+            return null;
+        }
         String statusAsJson = get("operations/flightstatus/" + flightNumber + "/" + LocalDate.now().toString());
         if (statusAsJson != null) {
             String   departureAirportCode = getDepartureAirportFromJson(statusAsJson);
@@ -427,10 +453,9 @@ public class Lufthansa {
         if (((JSONObject) ((JSONObject) obj.get("FlightStatusResource")).get("Flights")).get("Flight") instanceof JSONObject) {
             flights.add( (JSONObject) ((JSONObject) ((JSONObject) obj.get("FlightStatusResource")).get("Flights")).get("Flight") );
         } else {
-            int i =0;
-            while ( ((JSONArray) ((JSONObject) ((JSONObject) obj.get("FlightStatusResource")).get("Flights")).get("Flight")).get(i) instanceof JSONObject) {
-                flights.add( (JSONObject) ((JSONArray) ((JSONObject) ((JSONObject) obj.get("FlightStatusResource")).get("Flights")).get("Flight")).get(0) );
-                i++;
+            JSONArray jArray = ((JSONArray) ((JSONObject) ((JSONObject) obj.get("FlightStatusResource")).get("Flights")).get("Flight"));
+            for (int i = 0; i<jArray.length();i++) {
+                flights.add( (JSONObject) jArray.get(i) );
             }
         }
         return flights;

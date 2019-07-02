@@ -10,6 +10,8 @@ import net.aksingh.owmjapis.api.APIException;
 import net.aksingh.owmjapis.core.OWM;
 import net.aksingh.owmjapis.model.CurrentWeather;
 
+import lufthansa.ConnectionFlight;
+
 import cities.Cities;
 import org.opensky.api.OpenSkyApi;
 import org.opensky.model.OpenSkyStates;
@@ -39,6 +41,7 @@ public class EPN {
         cp.addEventType("StateVector", StateVector.class.getName());
         cp.addEventType("CurrentWeather", CurrentWeather.class.getName());
         cp.addEventType("Booking", Booking.class.getName());
+        cp.addEventType( "ConnectionFlight", ConnectionFlight.class.getName());
 
         // -------Cause of ReadTimeOut Errors we choose to combine EPA's into one EPStatement as it seems fit
         // event queries (EPAs)
@@ -78,7 +81,7 @@ public class EPN {
         // CurrentWeather#length(100) as weather where cast(weather.coordData,String) = cast(lufthansa.Lufthansa
         // .getArrivalAirportCoords(destination.flightNumber),String)");
 
-        EPStatement distance = cepAdm.createEPL("insert into DistanceVelocityStream select " +
+        /*EPStatement distance = cepAdm.createEPL("insert into DistanceVelocityStream select " +
                 "flightNumber, velocity, utils.GeoUtils.distance(latitude, longitude," +
                     "cast(destinationCoordinates[0],double), cast(destinationCoordinates[1],double) )as distance " +
                 "from LHStateVFlightNumberDestiCoordStream " +
@@ -89,7 +92,7 @@ public class EPN {
                 "where velocity is not null ");
         EPStatement eta = cepAdm.createEPL("insert into ETAStream select " +
                 "flightNumber, utils.GeoUtils.eta(distance, speed) as ETA " +
-                "from DistanceAvgVelocityStream ");
+                "from DistanceAvgVelocityStream ");*/
         /*----------------Reduced amount of Streams cause of Read TimeOut ------ have to figure out why this happens
         or reduce amount of simultaneous streams*/
 
@@ -140,15 +143,17 @@ public class EPN {
                 "where LoungeInfoStream.flightNumber = Booking.flightNumber");
 
 //        EPStatement ife = cepAdm.createEPL("insert into FinalStream select * from OutStream9");
+        //Debug Stream for newly created connectionflights Stream we could use to match with nice weather destinations
+        EPStatement connectionFlights = cepAdm.createEPL("insert into ConnectionStream select flightNumber, connectionFlightNumber from ConnectionFlight");
 
         // event listener
         lhFilter.addListener(new CEPListener("lhFilter"));
         callsignToFlightNumber.addListener(new CEPListener("callsignToFlightNumber"));
 //        lhDestinationAirport.addListener(new CEPListener("lhDestinationAirport"));
         lhDestinationCoordinates.addListener(new CEPListener("lhDestinationCoordinates"));
-        distance.addListener(new CEPListener("Distance"));
+     /*   distance.addListener(new CEPListener("Distance"));
         speed.addListener(new CEPListener("Speed"));
-        eta.addListener(new CEPListener("ETA"));
+        eta.addListener(new CEPListener("ETA"));*/
 //        gates.addListener(new CEPListener("Gates"));
         lhDestinationCity.addListener(new CEPListener("lhDestinationCity"));
 //        currentWeather.addListener(new CEPListener("CurrentWeather"));
@@ -159,6 +164,7 @@ public class EPN {
         loungeSelector.addListener(new CEPListener("loungeSelector"));
 //        ife.addListener(new CEPListener("ife"));
 //        ifeOnBoardSights.addListener(new CEPListener("ifeOnBoardSights"));
+        connectionFlights.addListener(new CEPListener("connectionFlights"));
 
         // send events to engine
         Thread thread1 = new Thread() {
@@ -203,7 +209,10 @@ public class EPN {
                     } catch (IOException e) {
                         e.printStackTrace();
                     }
-                    sendBookingEvents(flightNumber);
+                    if (flightNumber != "" && flightNumber != null){
+                        sendBookingEvents(flightNumber);
+                        sendConnectionFlightEvents(flightNumber);
+                    }
                 }
             }
             try {
@@ -228,6 +237,21 @@ public class EPN {
             cepRT.sendEvent(new Booking(flightNumber, CabinClass.values()[randomNum], faker.name().fullName(),
                     connectionFlightNumber));
 
+        }
+    }
+
+    public static void sendConnectionFlightEvents(String flightNumber) {
+        if (flightNumber.matches("[ \t\n\f\r]*(EW|LH|OS|LX)[0-9]{1,4}[ \t\n\f\r]*")) {
+            ArrayList<String> connectionFlightNumbers = new ArrayList<String>(lufthansa.Lufthansa.getConnectionFlights(flightNumber));
+            if (!connectionFlightNumbers.isEmpty()) {
+                try {
+                    for (String connectionFlightNumber : connectionFlightNumbers) {
+                        cepRT.sendEvent(new ConnectionFlight(flightNumber, connectionFlightNumber));
+                    }
+                } catch (NullPointerException e) {
+                    e.printStackTrace();
+                }
+            }
         }
     }
 
