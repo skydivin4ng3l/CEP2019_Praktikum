@@ -133,7 +133,12 @@ public class Lufthansa {
         String arrivalTime = getArrivalTime(flightNumber);
         String statusAsJson = get("operations/flightstatus/departures/" + arrivalAirportCode + "/" + arrivalTime +"?limit=1" );
         if (statusAsJson != null) {
-            String connectionFlightNumber = getDepartingFlightNumberFromJson(statusAsJson);
+            String connectionFlightNumber = null;
+            try {
+                connectionFlightNumber = getDepartingFlightNumbersFromJson(statusAsJson).get(0);
+            } catch (IndexOutOfBoundsException e ){
+                e.printStackTrace();
+            }
             return connectionFlightNumber;
         }
         //Doesn't make sense here to block cause the reason is mainly because there is no connectionflight
@@ -326,15 +331,21 @@ public class Lufthansa {
         }
     }
 
-    private static String getDepartingFlightNumberFromJson(String statusAsJson) {
-        JSONObject flight = getFlightObject(statusAsJson);
-        if (flight.has("OperatingCarrier")) {
-            if ( ((JSONObject) flight.get("OperatingCarrier")).has("FlightNumber")) {
-                String airLineID = ((JSONObject) flight.get("OperatingCarrier")).get("AirlineID").toString();
-                String number = ((JSONObject) flight.get("OperatingCarrier")).get("FlightNumber").toString();
-                String flightNumber =airLineID+number;
-                return flightNumber;
+    private static ArrayList<String> getDepartingFlightNumbersFromJson(String statusAsJson) {
+        ArrayList<JSONObject> flights = getFlightObjects(statusAsJson);
+        ArrayList<String> flightNumbers = new ArrayList<String>();
+        if (flights != null && !flights.isEmpty()) {
+            for (JSONObject flight : flights ){
+                if (flight.has("OperatingCarrier")){
+                    if (((JSONObject) flight.get("OperatingCarrier")).has("FlightNumber")) {
+                        String airLineID = ((JSONObject) flight.get("OperatingCarrier")).get("AirlineID").toString();
+                        String number = ((JSONObject) flight.get("OperatingCarrier")).get("FlightNumber").toString();
+                        String flightNumber = airLineID + number;
+                        flightNumbers.add(flightNumber);
+                    }
+                }
             }
+            return flightNumbers;
         }
         return null;
     }
@@ -408,6 +419,21 @@ public class Lufthansa {
             flight = (JSONObject) ((JSONArray) ((JSONObject) ((JSONObject) obj.get("FlightStatusResource")).get("Flights")).get("Flight")).get(0);
         }
         return flight;
+    }
+
+    private static ArrayList<JSONObject> getFlightObjects(String statusAsJson){
+        JSONObject obj = new JSONObject(statusAsJson);
+        ArrayList<JSONObject> flights = new ArrayList<JSONObject>();
+        if (((JSONObject) ((JSONObject) obj.get("FlightStatusResource")).get("Flights")).get("Flight") instanceof JSONObject) {
+            flights.add( (JSONObject) ((JSONObject) ((JSONObject) obj.get("FlightStatusResource")).get("Flights")).get("Flight") );
+        } else {
+            int i =0;
+            while ( ((JSONArray) ((JSONObject) ((JSONObject) obj.get("FlightStatusResource")).get("Flights")).get("Flight")).get(i) instanceof JSONObject) {
+                flights.add( (JSONObject) ((JSONArray) ((JSONObject) ((JSONObject) obj.get("FlightStatusResource")).get("Flights")).get("Flight")).get(0) );
+                i++;
+            }
+        }
+        return flights;
     }
 
     private static Object[] getArrivalCoordsFromJson(String statusAsJson) {
