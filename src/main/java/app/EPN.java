@@ -40,35 +40,34 @@ public class EPN {
         cp.addEventType("CurrentWeather", CurrentWeather.class.getName());
         cp.addEventType("Booking", Booking.class.getName());
 
+        // -------Cause of ReadTimeOut Errors we choose to combine EPA's into one EPStatement as it seems fit
         // event queries (EPAs)
-        EPStatement lhFilter = cepAdm.createEPL("insert into LHStateVectorStream select * from StateVector(callsign " +
-                "regexp '[ \\t\\n\\f\\r]*(EWG|DLH|AUA|SWR)[0-9]{1,4}[ \\t\\n\\f\\r]*')");
+        EPStatement lhFilter = cepAdm.createEPL("insert into LHStateVectorStream select * " +
+                "from StateVector(callsign regexp '[ \\t\\n\\f\\r]*(EWG|DLH|AUA|SWR)[0-9]{1,4}[ \\t\\n\\f\\r]*')");
 
-        EPStatement callsignToFlightNumber = cepAdm.createEPL("insert into LHStateVectorWithFlightNumberStream select" +
-                " *, utils.Callsign.icaoToIata(callsign) as flightNumber from LHStateVectorStream");
+        EPStatement callsignToFlightNumber = cepAdm.createEPL("insert into LHStateVFlightNumberStream select" +
+                " *, utils.Callsign.icaoToIata(callsign) as flightNumber " +
+                "from LHStateVectorStream");
 
-        EPStatement lhDestinationAirport = cepAdm.createEPL("insert into " +
-                "LHStateVectorWithFlightNumberAndDestinationAirportStream select *, lufthansa.Lufthansa" +
-                ".getArrivalAirportCode(flightNumber) as destinationAirport from LHStateVectorWithFlightNumberStream");
+        EPStatement lhDestinationCoordinates = cepAdm.createEPL("insert into LHStateVFlightNumberDestiCoordStream select " +
+                "*,lufthansa.Lufthansa.getArrivalAirportCoords(flightNumber) as destinationCoordinates " +
+                "from LHStateVFlightNumberStream");
 
-        EPStatement lhDestinationCoordinates = cepAdm.createEPL("insert into " +
-                "LHStateVectorWithFlightNumberAndDestinationCoordinatesStream select *,lufthansa.Lufthansa" +
-                ".getArrivalAirportCoords(flightNumber) as destinationCoordinates  from " +
-                "LHStateVectorWithFlightNumberStream");
         //get city for destination seems to produce a lot of "none" cities,...don't know how to easily access
         // coordData's lat and lon as join attributes for destinationWeatherSight from OWM
-        EPStatement lhDestinationCity = cepAdm.createEPL("insert into DestinationCityStream select flightNumber, " +
-                "cities.Cities.getCity(cast(destinationCoordinates[0],double), cast(destinationCoordinates[1],double)" +
-                " ) as destinationCity from LHStateVectorWithFlightNumberAndDestinationCoordinatesStream where " +
-                "destinationCoordinates is not null");
+        EPStatement lhDestinationCity = cepAdm.createEPL("insert into DestinationCityStream select " +
+                "flightNumber, " +
+                "cities.Cities.getCity(cast(destinationCoordinates[0],double), cast(destinationCoordinates[1],double)) as destinationCity " +
+                "from LHStateVFlightNumberDestiCoordStream " +
+                "where destinationCoordinates is not null");
 
         /*----------------Reduced amount of Streams cause of Read TimeOut ------ have to figure out why this happens
         or reduce amount of simultaneous streams*/
         //obsolete//EPStatement currentWeather = cepAdm.createEPL("insert into WeatherStream select coordData,
         // weatherList, cityName from CurrentWeather");
         EPStatement destinationWeatherSight = cepAdm.createEPL("insert into DestinationWeatherSightInfoStream select " +
-                "destination.flightNumber, destination.destinationCity, weather.weatherList, cities.Cities.getSight" +
-                "(cast(destination.destinationCity,String),cast(weather.weatherList,String)) as destinationSights " +
+                "destination.flightNumber, destination.destinationCity, weather.weatherList, " +
+                "cities.Cities.getSight(cast(destination.destinationCity,String),cast(weather.weatherList,String)) as destinationSights " +
                 "from DestinationCityStream#length(100) as destination join CurrentWeather#length(100) as weather " +
                 "where weather.cityName = destination.destinationCity and destination.destinationCity !='none'");
 
@@ -78,17 +77,19 @@ public class EPN {
         // String)) as destinationSights from DestinationCityStream#length(100) as destination join
         // CurrentWeather#length(100) as weather where cast(weather.coordData,String) = cast(lufthansa.Lufthansa
         // .getArrivalAirportCoords(destination.flightNumber),String)");
-        
-        EPStatement distance = cepAdm.createEPL("insert into DistanceVelocityStream select flightNumber, velocity, " +
-                "utils.GeoUtils.distance(latitude, longitude,cast(destinationCoordinates[0],double), cast         " +
-                "(destinationCoordinates[1],double) )as distance from " +
-                "LHStateVectorWithFlightNumberAndDestinationCoordinatesStream where destinationCoordinates is not " +
-                "null ");
+
+        EPStatement distance = cepAdm.createEPL("insert into DistanceVelocityStream select " +
+                "flightNumber, velocity, utils.GeoUtils.distance(latitude, longitude," +
+                    "cast(destinationCoordinates[0],double), cast(destinationCoordinates[1],double) )as distance " +
+                "from LHStateVFlightNumberDestiCoordStream " +
+                "where destinationCoordinates is not null ");
         EPStatement speed = cepAdm.createEPL("insert into DistanceAvgVelocityStream select " +
-                "distance, flightNumber, distance, utils.GeoUtils.msToKmh(cast(avg(velocity),double))as speed from " +
-                "DistanceVelocityStream#groupwin(flightNumber)#length(2) where velocity is not null ");
-        EPStatement eta = cepAdm.createEPL("insert into ETAStream select flightNumber, " +
-                "utils.GeoUtils.eta(distance, speed) as ETA from DistanceAvgVelocityStream ");
+                "distance, flightNumber, distance, utils.GeoUtils.msToKmh(cast(avg(velocity),double))as speed " +
+                "from DistanceVelocityStream#groupwin(flightNumber)#length(2) " +
+                "where velocity is not null ");
+        EPStatement eta = cepAdm.createEPL("insert into ETAStream select " +
+                "flightNumber, utils.GeoUtils.eta(distance, speed) as ETA " +
+                "from DistanceAvgVelocityStream ");
         /*----------------Reduced amount of Streams cause of Read TimeOut ------ have to figure out why this happens
         or reduce amount of simultaneous streams*/
 
@@ -98,44 +99,52 @@ public class EPN {
         // .getDepartureAirportGate(flightNumber) as DepartureGate, lufthansa.Lufthansa.getDepartureTime
         // (flightNumber) as LocalDepartureTime, lufthansa.Lufthansa.getArrivalAirportGate(flightNumber) as
         // ArrivalGate, lufthansa.Lufthansa.getArrivalTime(flightNumber) as LocalArrivalTime from
-        // LHStateVectorWithFlightNumberStream");
+        // LHStateVFlightNumberStream");
+
         //do we really need the statevektor for this? All the information we also get from the bookingStream if we
-        // actually need the stream and can not just use the Booking
+        // actually need the stream, why can't we just use the Booking? Implementation of FlightStatuses currently does not allow updates.
         EPStatement connectionFlightGates = cepAdm.createEPL("insert into ConnectionFlightGatesStream select " +
                 "booking.passengerName as passengerName, booking.flightNumber as flightNumber," +
                 "booking.connectionFlightNumber as connectionFlightNumber, " +
                 "lufthansa.Lufthansa.getDepartureAirportGate(booking.connectionFlightNumber) as DepartureGateConnectionFlight," +
                 "lufthansa.Lufthansa.getDepartureTime(booking.connectionFlightNumber) as DepartureLocalTimeConnectionFlight," +
                 "lufthansa.Lufthansa.getArrivalAirportGate(booking.flightNumber) as ArrivalGate," +
-                "lufthansa.Lufthansa.getArrivalTime(booking.flightNumber) as ArrivalLocalTime from " +
-                "LHStateVectorWithFlightNumberStream#length(10) as flight join Booking#length(10) as booking where " +
-                "booking.flightNumber = flight.flightNumber and booking.connectionFlightNumber is not null");
+                "lufthansa.Lufthansa.getArrivalTime(booking.flightNumber) as ArrivalLocalTime " +
+                "from LHStateVFlightNumberStream#length(10) as flight join Booking#length(10) as booking " +
+                "where booking.flightNumber = flight.flightNumber and booking.connectionFlightNumber is not null");
 
-
-        EPStatement onBoardSights = cepAdm.createEPL("insert into OnBoardSightsStream select flightNumber, cities" +
-                ".Cities.getCity(cast(latitude,double),cast(longitude,double)) as sights from " +
-                "LHStateVectorWithFlightNumberStream");
+        EPStatement onBoardSights = cepAdm.createEPL("insert into OnBoardSightsStream select " +
+                "flightNumber, cities.Cities.getCity(cast(latitude,double),cast(longitude,double)) as sights " +
+                "from LHStateVFlightNumberStream");
         /*EPStatement ifeOnBoardSights = cepAdm.createEPL("insert into FinalOnBoardSightsStream select * from " +
         "OnBoardSightsStream where sights != 'none'");*/
 
+        //currently obsolete if loungeInfo calls for airportcode themselves still counts as ENRICH EPA
+        /*EPStatement lhDestinationAirport = cepAdm.createEPL("insert into LHStateVFlightNumberDestiAirportStream select " +
+                "*, lufthansa.Lufthansa.getArrivalAirportCode(flightNumber) as destinationAirport " +
+                "from LHStateVFlightNumberStream");*/
+
         //get lounge info depending on the airport code no join needed
         EPStatement loungeInfo = cepAdm.createEPL("insert into LoungeInfoStream select " +
-                "flightNumber, destinationAirport, lufthansa.Lufthansa.getAirportLounges(destinationAirport) as lounges from " +
-                "LHStateVectorWithFlightNumberAndDestinationAirportStream#unique(flightNumber) as DestinationAirport");
+                "flightNumber, lufthansa.Lufthansa.getArrivalAirportCode(flightNumber) as destinationAirport," +
+                "lufthansa.Lufthansa.getAirportLounges(lufthansa.Lufthansa.getArrivalAirportCode(flightNumber)) as lounges " +
+                "from LHStateVFlightNumberStream#unique(flightNumber) as DestinationAirport");
 
         //joins lounge info per flightNumber with the respective Bookings above economy
-        EPStatement loungeSelector = cepAdm.createEPL("insert into OutStream9 select Booking.passengerName as passengerName, " +
-                "LoungeInfo.flightNumber as flightNumber, LoungeInfo.destinationAirport as destinationAirport, " +
-                "lounges[0].name as loungeName, lounges[0].showers as showers from LoungeInfoStream#unique(flightNumber) as LoungeInfo JOIN " +
-                "Booking(cabinClass.toString() != 'ECONOMY')#length(5) as Booking where " +
-                "LoungeInfoStream.flightNumber = Booking.flightNumber");
+        EPStatement loungeSelector = cepAdm.createEPL("insert into OutStream9 select " +
+                "Booking.passengerName as passengerName, LoungeInfo.flightNumber as flightNumber, " +
+                "LoungeInfo.destinationAirport as destinationAirport, " +
+                "lounges[0].name as loungeName, lounges[0].showers as showers " +
+                "from LoungeInfoStream#unique(flightNumber) as LoungeInfo " +
+                "JOIN Booking(cabinClass.toString() != 'ECONOMY')#length(5) as Booking " +
+                "where LoungeInfoStream.flightNumber = Booking.flightNumber");
 
 //        EPStatement ife = cepAdm.createEPL("insert into FinalStream select * from OutStream9");
 
         // event listener
         lhFilter.addListener(new CEPListener("lhFilter"));
         callsignToFlightNumber.addListener(new CEPListener("callsignToFlightNumber"));
-        lhDestinationAirport.addListener(new CEPListener("lhDestinationAirport"));
+//        lhDestinationAirport.addListener(new CEPListener("lhDestinationAirport"));
         lhDestinationCoordinates.addListener(new CEPListener("lhDestinationCoordinates"));
         distance.addListener(new CEPListener("Distance"));
         speed.addListener(new CEPListener("Speed"));
