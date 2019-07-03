@@ -134,11 +134,15 @@ public class Lufthansa {
         if (arrivalAirportCode == null || arrivalTime == null) {
             return null;
         }
-        String statusAsJson = get("operations/flightstatus/departures/" + arrivalAirportCode + "/" + arrivalTime +"?limit=1" );
+        String statusAsJson = get("operations/flightstatus/departures/" + arrivalAirportCode + "/" + arrivalTime +"?limit=5" );
         if (statusAsJson != null) {
             String connectionFlightNumber = null;
             try {
-                connectionFlightNumber = getDepartingFlightNumbersFromJson(statusAsJson).get(0);
+                ArrayList<String> connectionFlightNumbers = getDepartingFlightNumbersFromJson(statusAsJson);
+                if (connectionFlightNumbers.isEmpty()) {
+                    return null;
+                }
+                connectionFlightNumber = connectionFlightNumbers.get(0);
             } catch (IndexOutOfBoundsException e ){
                 e.printStackTrace();
             }
@@ -159,7 +163,7 @@ public class Lufthansa {
         if (arrivalAirportCode == null || arrivalTime == null) {
             return connectionFlightNumbers;
         }
-        String statusAsJson = get("operations/flightstatus/departures/" + arrivalAirportCode + "/" + arrivalTime +"?limit=5" );
+        String statusAsJson = get("operations/flightstatus/departures/" + arrivalAirportCode + "/" + arrivalTime +"?limit=10" );
         if (statusAsJson != null) {
             connectionFlightNumbers = getDepartingFlightNumbersFromJson(statusAsJson);
 
@@ -367,7 +371,9 @@ public class Lufthansa {
                         String airLineID = ((JSONObject) flight.get("OperatingCarrier")).get("AirlineID").toString();
                         String number = ((JSONObject) flight.get("OperatingCarrier")).get("FlightNumber").toString();
                         String flightNumber = airLineID + number;
-                        flightNumbers.add(flightNumber);
+                        if (flightNumber.matches("[ \t\n\f\r]*(EW|LH|OS|LX)[0-9]{1,4}[ \t\n\f\r]*")){
+                            flightNumbers.add(flightNumber);
+                        }
                     }
                 }
             }

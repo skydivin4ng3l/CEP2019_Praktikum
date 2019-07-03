@@ -43,20 +43,6 @@ public class Cities {
         return null;
     }
 
-    public static boolean hasGoodWeather(String cityName, String weatherInfo) {
-        for (String[] cityData : cities) {
-            if (cityData[0].equalsIgnoreCase(cityName)) {
-                if (cityData.length > 3) {
-                    if (weatherInfo.toUpperCase().contains("RAIN") || weatherInfo.toUpperCase().contains("DRIZZLE") || weatherInfo.toUpperCase().contains("THUNDERSTORM")) {
-                        return false;
-                    }
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-
     public static String getCity(double lat, double lon) {
         for (String[] cityData : cities) {
                 if (cityData.length > 5) {

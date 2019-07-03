@@ -1,5 +1,7 @@
 package lufthansa;
 
+import java.util.Arrays;
+
 class Airport {
     private String code;
     private Object[] coords;
@@ -37,5 +39,14 @@ class Airport {
 
     public void setLounges(Lounge[] lounges) {
         this.lounges = lounges;
+    }
+
+    @Override
+    public String toString() {
+        return "Airport{" +
+                "code='" + code + '\'' +
+                ", coords=" + Arrays.toString(coords) +
+                ", lounges=" + Arrays.toString(lounges) +
+                '}';
     }
 }

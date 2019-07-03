@@ -22,7 +22,7 @@ public class CEPListener implements UpdateListener {
         else if (id.equalsIgnoreCase("Speed")){
             System.out.println("(" + id + ") " + "Event matched: " + newData[0].getUnderlying());
         }
-        else */if (id.equalsIgnoreCase("ETA")){
+        else*/ if (id.equalsIgnoreCase("ETA")){
             System.out.println("(" + id + ") " + "Event matched: " + newData[0].getUnderlying());
         }
         else if (id.equalsIgnoreCase("OnBoardSights")){
@@ -46,10 +46,13 @@ public class CEPListener implements UpdateListener {
         else if (id.equalsIgnoreCase("loungeSelector")){
             System.out.println("(" + id + ") " + "Event matched: " + newData[0].getUnderlying());
         }
-        else if (id.equalsIgnoreCase("connectionFlightsDestination")){
+        /*else if (id.equalsIgnoreCase("connectionFlightsDestination")){
             System.out.println("(" + id + ") " + "Event matched: " + newData[0].getUnderlying());
         }
         else if (id.equalsIgnoreCase("connectionFlightsGoodWeather")){
+            System.out.println("(" + id + ") " + "Event matched: " + newData[0].getUnderlying());
+        }*/
+        else if (id.equalsIgnoreCase("advertiseGoodWeatherConnectionFlight")){
             System.out.println("(" + id + ") " + "Event matched: " + newData[0].getUnderlying());
         }
     }

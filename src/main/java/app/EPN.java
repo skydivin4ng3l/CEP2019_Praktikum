@@ -11,6 +11,7 @@ import net.aksingh.owmjapis.core.OWM;
 import net.aksingh.owmjapis.model.CurrentWeather;
 
 import lufthansa.ConnectionFlight;
+import utils.WeatherUtils;
 
 import cities.Cities;
 import org.opensky.api.OpenSkyApi;
@@ -126,14 +127,14 @@ public class EPN {
         EPStatement loungeInfo = cepAdm.createEPL("insert into LoungeInfoStream_11 select " +
                 "flightNumber, lufthansa.Lufthansa.getArrivalAirportCode(flightNumber) as destinationAirport," +
                 "lufthansa.Lufthansa.getAirportLounges(lufthansa.Lufthansa.getArrivalAirportCode(flightNumber)) as lounges " +
-                "from LHStateVFlightNumberStream_02#unique(flightNumber) as DestinationAirport");
+                "from LHStateVFlightNumberStream_02#firstunique(flightNumber) as DestinationAirport");
 
         //joins lounge info per flightNumber with the respective Bookings above economy
         EPStatement loungeSelector = cepAdm.createEPL("insert into LoungeSelectorStream_12 select " +
                 "Booking.passengerName as passengerName, LoungeInfo.flightNumber as flightNumber, " +
                 "LoungeInfo.destinationAirport as destinationAirport, " +
                 "lounges[0].name as loungeName, lounges[0].showers as showers " +
-                "from LoungeInfoStream_11#unique(flightNumber) as LoungeInfo " +
+                "from LoungeInfoStream_11#firstunique(flightNumber) as LoungeInfo " +
                 "JOIN Booking(cabinClass.toString() != 'ECONOMY')#length(5) as Booking " +
                 "where LoungeInfoStream_11.flightNumber = Booking.flightNumber");
 
@@ -141,13 +142,24 @@ public class EPN {
         EPStatement destiCityConnectionFlights = cepAdm.createEPL("insert into DestiCityConnectionFlightStream_13 select " +
                 "flightNumber, connectionFlightNumber, cities.Cities.getCity(" +
                     "cast(lufthansa.Lufthansa.getArrivalAirportCoords(connectionFlightNumber).get(0),double)," +
-                    "cast(lufthansa.Lufthansa.getArrivalAirportCoords(connectionFlightNumber).get(1),double)) as destiCity " +
+                    "cast(lufthansa.Lufthansa.getArrivalAirportCoords(connectionFlightNumber).get(1),double)) as destiCity, " +
+                "utils.GeoUtils.distance(" +
+                    "cast(lufthansa.Lufthansa.getArrivalAirportCoords(flightNumber).get(0),double)," +
+                    "cast(lufthansa.Lufthansa.getArrivalAirportCoords(flightNumber).get(1),double)," +
+                    "cast(lufthansa.Lufthansa.getArrivalAirportCoords(connectionFlightNumber).get(0),double)," +
+                    "cast(lufthansa.Lufthansa.getArrivalAirportCoords(connectionFlightNumber).get(1),double)) as distance " +
                 "from ConnectionFlight");
 
         EPStatement weatherConnectionFlight = cepAdm.createEPL("insert into weatherConnectionFlightNumberStream_14 select " +
-                "*, cities.Cities.hasGoodWeather(cast(weather.cityName,String),cast(weather.weatherList,String)) as hasGoodWeather " +
+                "weather.weatherList as weatherInfo, desti.flightNumber as flightNumber, desti.connectionFlightNumber as connectionFlightNumber, " +
+                "desti.distance as distance, desti.destiCity as cityName, " +
+                "utils.WeatherUtils.hasGoodWeather(cast(weather.weatherList,String)) as hasGoodWeather " +
                 "from DestiCityConnectionFlightStream_13#unique(connectionFlightNumber) as desti join CurrentWeather#unique(cityName) as weather " +
                 "where desti.destiCity = weather.cityName");
+
+        EPStatement advertiseGoodWeatherConnectionFlight = cepAdm.createEPL("insert into advertiseConnectionFlightStream_15 select " +
+                "flightNumber, connectionFlightNumber, weatherInfo, distance, cityName " +
+                "from weatherConnectionFlightNumberStream_14(hasGoodWeather=true)#groupwin(flightNumber)#sort(3, distance asc) ");
 
         // event listener
         lhFilter.addListener(new CEPListener("lhFilter"));
@@ -167,6 +179,7 @@ public class EPN {
 //        ifeOnBoardSights.addListener(new CEPListener("ifeOnBoardSights"));
         destiCityConnectionFlights.addListener(new CEPListener("connectionFlightsDestination"));
         weatherConnectionFlight.addListener(new CEPListener("connectionFlightsGoodWeather"));
+        advertiseGoodWeatherConnectionFlight.addListener(new CEPListener("advertiseGoodWeatherConnectionFlight"));
 
         // send events to engine
         Thread thread1 = new Thread() {
