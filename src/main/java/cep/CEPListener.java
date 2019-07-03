@@ -46,7 +46,10 @@ public class CEPListener implements UpdateListener {
         else if (id.equalsIgnoreCase("loungeSelector")){
             System.out.println("(" + id + ") " + "Event matched: " + newData[0].getUnderlying());
         }
-        else if (id.equalsIgnoreCase("connectionFlights")){
+        else if (id.equalsIgnoreCase("connectionFlightsDestination")){
+            System.out.println("(" + id + ") " + "Event matched: " + newData[0].getUnderlying());
+        }
+        else if (id.equalsIgnoreCase("connectionFlightsGoodWeather")){
             System.out.println("(" + id + ") " + "Event matched: " + newData[0].getUnderlying());
         }
     }

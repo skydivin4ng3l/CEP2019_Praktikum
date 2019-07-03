@@ -66,8 +66,7 @@ public class EPN {
 
         /*----------------Reduced amount of Streams cause of Read TimeOut ------ have to figure out why this happens
         or reduce amount of simultaneous streams*/
-        //obsolete//EPStatement currentWeather = cepAdm.createEPL("insert into WeatherStream select coordData,
-        // weatherList, cityName from CurrentWeather");
+
         EPStatement destinationWeatherAndSight = cepAdm.createEPL("insert into destinationWeatherAndSightStream_05 select " +
                 "destination.flightNumber, destination.destinationCity, weather.weatherList, " +
                 "cities.Cities.getSight(cast(destination.destinationCity,String),cast(weather.weatherList,String)) as destinationSights " +
@@ -96,13 +95,13 @@ public class EPN {
         /*----------------Reduced amount of Streams cause of Read TimeOut ------ have to figure out why this happens
         or reduce amount of simultaneous streams*/
 
-        //Obsolete//EPStatement bookingAll = cepAdm.createEPL("insert into BookingAllStream select * from Booking");
         //not requested Verification stream of arrival/departure gates and time implementation
-        //EPStatement gates = cepAdm.createEPL("insert into GatesStream select flightNumber, lufthansa.Lufthansa
-        // .getDepartureAirportGate(flightNumber) as DepartureGate, lufthansa.Lufthansa.getDepartureTime
-        // (flightNumber) as LocalDepartureTime, lufthansa.Lufthansa.getArrivalAirportGate(flightNumber) as
-        // ArrivalGate, lufthansa.Lufthansa.getArrivalTime(flightNumber) as LocalArrivalTime from
-        // 02_LHStateVFlightNumberStream");
+        /*EPStatement gates = cepAdm.createEPL("insert into GatesStream select " +
+                "flightNumber, lufthansa.Lufthansa).getDepartureAirportGate(flightNumber) as DepartureGate, " +
+                "lufthansa.Lufthansa.getDepartureTime(flightNumber) as LocalDepartureTime, " +
+                "lufthansa.Lufthansa.getArrivalAirportGate(flightNumber) as ArrivalGate, " +
+                "lufthansa.Lufthansa.getArrivalTime(flightNumber) as LocalArrivalTime " +
+                "from LHStateVFlightNumberStream_02");*/
 
         //do we really need the statevektor for this? All the information we also get from the bookingStream if we
         // actually need the stream, why can't we just use the Booking? Implementation of FlightStatuses currently does not allow updates.
@@ -119,13 +118,9 @@ public class EPN {
         EPStatement onBoardSights = cepAdm.createEPL("insert into OnBoardSightsStream_10 select " +
                 "flightNumber, cities.Cities.getCity(cast(latitude,double),cast(longitude,double)) as sights " +
                 "from LHStateVFlightNumberStream_02");
-        /*EPStatement ifeOnBoardSights = cepAdm.createEPL("insert into Final10_OnBoardSightsStream select * from " +
-        "10_OnBoardSightsStream where sights != 'none'");*/
-
-        //currently obsolete if loungeInfo calls for airportcode themselves still counts as ENRICH EPA
-        /*EPStatement lhDestinationAirport = cepAdm.createEPL("insert into LHStateVFlightNumberDestiAirportStream select " +
-                "*, lufthansa.Lufthansa.getArrivalAirportCode(flightNumber) as destinationAirport " +
-                "from 02_LHStateVFlightNumberStream");*/
+        //not necessary cause everything goes to the passenger/ife
+        /*EPStatement ifeOnBoardSights = cepAdm.createEPL("insert into Final10_OnBoardSightsStream select * " +
+                "from OnBoardSightsStream_10 where sights != 'none'");*/
 
         //get lounge info depending on the airport code no join needed
         EPStatement loungeInfo = cepAdm.createEPL("insert into LoungeInfoStream_11 select " +
@@ -143,20 +138,26 @@ public class EPN {
                 "where LoungeInfoStream_11.flightNumber = Booking.flightNumber");
 
 //        EPStatement ife = cepAdm.createEPL("insert into FinalStream select * from 12_LoungeSelectorStream");
-        //Debug Stream for newly created connectionflights Stream we could use to match with nice weather destinations
-        EPStatement connectionFlights = cepAdm.createEPL("insert into ConnectionStream_13 select flightNumber, connectionFlightNumber from ConnectionFlight");
+        EPStatement destiCityConnectionFlights = cepAdm.createEPL("insert into DestiCityConnectionFlightStream_13 select " +
+                "flightNumber, connectionFlightNumber, cities.Cities.getCity(" +
+                    "cast(lufthansa.Lufthansa.getArrivalAirportCoords(connectionFlightNumber).get(0),double)," +
+                    "cast(lufthansa.Lufthansa.getArrivalAirportCoords(connectionFlightNumber).get(1),double)) as destiCity " +
+                "from ConnectionFlight");
+
+        EPStatement weatherConnectionFlight = cepAdm.createEPL("insert into weatherConnectionFlightNumberStream_14 select " +
+                "*, cities.Cities.hasGoodWeather(cast(weather.cityName,String),cast(weather.weatherList,String)) as hasGoodWeather " +
+                "from DestiCityConnectionFlightStream_13#unique(connectionFlightNumber) as desti join CurrentWeather#unique(cityName) as weather " +
+                "where desti.destiCity = weather.cityName");
 
         // event listener
         lhFilter.addListener(new CEPListener("lhFilter"));
         callsignToFlightNumber.addListener(new CEPListener("callsignToFlightNumber"));
-//        lhDestinationAirport.addListener(new CEPListener("lhDestinationAirport"));
         lhDestinationCoordinates.addListener(new CEPListener("lhDestinationCoordinates"));
-     /*   distance.addListener(new CEPListener("Distance"));
+        distance.addListener(new CEPListener("Distance"));
         speed.addListener(new CEPListener("Speed"));
-        eta.addListener(new CEPListener("ETA"));*/
+        eta.addListener(new CEPListener("ETA"));
 //        gates.addListener(new CEPListener("Gates"));
         lhDestinationCity.addListener(new CEPListener("lhDestinationCity"));
-//        currentWeather.addListener(new CEPListener("CurrentWeather"));
         destinationWeatherAndSight.addListener(new CEPListener("destinationWeatherAndSight"));
         loungeInfo.addListener(new CEPListener("loungeInfo"));
         connectionFlightGates.addListener(new CEPListener("connectionFlightGates"));
@@ -164,7 +165,8 @@ public class EPN {
         loungeSelector.addListener(new CEPListener("loungeSelector"));
 //        ife.addListener(new CEPListener("ife"));
 //        ifeOnBoardSights.addListener(new CEPListener("ifeOnBoardSights"));
-        connectionFlights.addListener(new CEPListener("connectionFlights"));
+        destiCityConnectionFlights.addListener(new CEPListener("connectionFlightsDestination"));
+        weatherConnectionFlight.addListener(new CEPListener("connectionFlightsGoodWeather"));
 
         // send events to engine
         Thread thread1 = new Thread() {

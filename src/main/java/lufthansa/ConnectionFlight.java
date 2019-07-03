@@ -24,4 +24,12 @@ public class ConnectionFlight {
     public void setFlightNumber(String flightNumber) {
         this.flightNumber = flightNumber;
     }
+
+    @Override
+    public String toString() {
+        return "ConnectionFlight{" +
+                "flightNumber='" + flightNumber + '\'' +
+                ", connectionFlightNumber='" + connectionFlightNumber + '\'' +
+                '}';
+    }
 }

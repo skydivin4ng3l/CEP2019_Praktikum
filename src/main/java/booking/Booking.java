@@ -44,4 +44,14 @@ public class Booking {
     public void setConnectionFlightNumber(String connectionFlightNumber) {
         this.connectionFlightNumber = connectionFlightNumber;
     }
+
+    @Override
+    public String toString() {
+        return "Booking{" +
+                "flightNumber='" + flightNumber + '\'' +
+                ", cabinClass=" + cabinClass +
+                ", passengerName='" + passengerName + '\'' +
+                ", connectionFlightNumber='" + connectionFlightNumber + '\'' +
+                '}';
+    }
 }
